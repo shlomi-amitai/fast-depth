@@ -7,7 +7,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.nn.parallel
 import torch.optim
-from Data import *
+from myData import *
 
 import criteria
 
@@ -17,7 +17,7 @@ import models
 from metrics import AverageMeter, Result
 from utils import *
 
-
+from my_utils import *
 args = parse_command()
 print(args)
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu  # Set the GPU.
@@ -47,7 +47,9 @@ def create_data_loaders(args):
             train_dataset = NYU(traindir, split='train', modality=args.modality)
         val_dataset = NYU(valdir, split='val', modality=args.modality)
     else:
-        raise RuntimeError('Dataset not found.' + 'The dataset must be either of nyudepthv2 or kitti.')
+        if not args.evaluate:
+            train_dataset = UC(traindir, split='train', modality=args.modality)  
+        val_dataset = UC(valdir, split='val', modality=args.modality)
 
     # set batch size to be 1 for validation
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=args.workers,
@@ -80,7 +82,7 @@ def main():
         if args.data == 'nyudepthv2':
             val_dataset = NYU(valdir, split='val', modality=args.modality)
         else:
-            raise RuntimeError('Dataset not found.')
+            val_dataset = UC(valdir, split='val', modality=args.modality)
 
         # set batch size to be 1 for validation
         val_loader = torch.utils.data.DataLoader(val_dataset,
@@ -99,7 +101,7 @@ def main():
         else:
             model = checkpoint
             args.start_epoch = 0
-        output_directory = os.path.dirname('/home/jetson/FastDepth')
+        output_directory = os.path.dirname('outputs')
         validate(val_loader, model, args.start_epoch, write_to_file=False)
         return
 
@@ -171,7 +173,7 @@ def validate(val_loader, model, epoch, write_to_file=True):
     average_meter = AverageMeter()
     model.eval()  # switch to evaluate mode
     end = time.time()
-    eval_file = output_directory + '/FastDepth/evaluation.csv'
+    eval_file = output_directory + 'evaluation.csv'
     f = open(eval_file, "w+")
     f.write("Max_Error,Depth,RMSE,GPU_TIME,Number_Of_Frame\r\n")
     for i, (input, target) in enumerate(val_loader):
@@ -201,7 +203,7 @@ def validate(val_loader, model, epoch, write_to_file=True):
 
         f.write(f'{max_err},{max_err_depth},{result.rmse:.2f},{gpu_time},{i+1}\r\n')
         # save 8 images for visualization
-        skip = 50
+        skip = 0
 
         if args.modality == 'rgb':
             rgb = input
@@ -211,9 +213,17 @@ def validate(val_loader, model, epoch, write_to_file=True):
         elif (i < 8 * skip) and (i % skip == 0):
             row = merge_into_row_with_gt(rgb, target, pred, (target - pred).abs())
             img_merge = add_row(img_merge, row)
-        elif i == 8 * skip:
-            filename = output_directory + '/comparison_' + str(epoch) + '.png'
+        if 1:
+            filename = 'results/comparison_' + str(epoch) + '.png'
             save_image(img_merge, filename)
+
+        inputIm = toNumpy(rgb*255).astype(np.uint8)
+        outPred = toNumpy(normalize_image(pred)*255).astype(np.uint8)
+        outDir = 'results'
+        if not os.path.exists(outDir):
+            os.makedirs(outDir)
+        plt.imsave(outDir + "/frame_{:06d}_color.bmp".format(i), inputIm)
+        plt.imsave(outDir + "/frame_{:06d}_pred.bmp".format(i), outPred)
 
         if (i + 1) % args.print_freq == 0:
             print('Test: [{0}/{1}]\t'

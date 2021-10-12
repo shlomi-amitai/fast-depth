@@ -113,7 +113,7 @@ def parse_command():
 
 
     ################
-    data_names = ['nyudepthv2']
+    data_names = ['nyudepthv2', 'uc']
     modality_names = CustomDataLoader.modality_names
 
     import argparse
@@ -123,7 +123,7 @@ def parse_command():
                         help='dataset: ' + ' | '.join(data_names) + ' (default: nyudepthv2)')
     # parser.add_argument('--modality', '-m', metavar='MODALITY', default='rgb', choices=modality_names,
     #                     help='modality: ' + ' | '.join(modality_names) + ' (default: rgb)')
-    parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
+    parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
     # parser.add_argument('--print-freq', '-p', default=50, type=int,
     #                     metavar='N', help='print frequency (default: 50)')
@@ -158,7 +158,7 @@ def parse_command():
                         help='number of total epochs to run (default: 15)')
     parser.add_argument('-c', '--criterion', metavar='LOSS', default='l1', choices=loss_names,
                         help='loss function: ' + ' | '.join(loss_names) + ' (default: l1)')
-    parser.add_argument('-b', '--batch-size', default=8, type=int, help='mini-batch size (default: 8)')
+    parser.add_argument('-b', '--batch-size', default=2, type=int, help='mini-batch size (default: 8)')
     parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                         metavar='LR', help='initial learning rate (default 0.01)')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M',

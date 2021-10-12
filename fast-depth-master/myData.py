@@ -7,8 +7,10 @@ import torch
 import torch.utils.data as data
 
 import Transforms as T
+import PIL.Image as pil
+from pathlib import Path
 
-IMAGE_HEIGHT, IMAGE_WIDTH = 480, 640  # raw image size
+IMAGE_HEIGHT, IMAGE_WIDTH = 608, 968  # raw image size
 
 
 def h5Loader(path):
@@ -18,12 +20,22 @@ def h5Loader(path):
     depth = np.array(h5f['depth'])
     return rgb, depth
 
+def pilLoader(path):
+    if 'val\\rgb' in path: 
+        depthPath = path.replace('val\\rgb', 'depth')
+    else:
+        depthPath = path.replace('train\\rgb', 'depth')
+    depthPath = depthPath.replace('.tiff', '_abs_depth.tif')
+    rgb = np.array(pil.open(path)).astype(np.float32)
+    depth = np.array(pil.open(depthPath)).astype(np.float32)
+
+    return rgb, depth  
 
 class CustomDataLoader(data.Dataset):
     modality_names = ['rgb']
 
     def isImageFile(self, filename):
-        IMG_EXTENSIONS = ['.h5']
+        IMG_EXTENSIONS = ['.png']
         return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
     def findClasses(self, dir):
@@ -50,7 +62,7 @@ class CustomDataLoader(data.Dataset):
 
     color_jitter = T.ColorJitter(0.4, 0.4, 0.4)
 
-    def __init__(self, root, split, modality='rgb', loader=h5Loader):
+    def __init__(self, root, split, modality='rgb', loader=pilLoader):
         classes, class_to_idx = self.findClasses(root)
         imgs = self.makeDataset(root, class_to_idx)
         assert len(imgs) > 0, "Found 0 images in subfolders of: " + root + "\n"
@@ -123,7 +135,7 @@ class NYU(CustomDataLoader):
     def __init__(self, root, split, modality='rgb'):
         self.split = split
         super(NYU, self).__init__(root, split, modality)
-        self.output_size = (480, 640)
+        self.output_size = (640, 480)
 
     def isImageFile(self, filename):
         # IMG_EXTENSIONS = ['.h5']
@@ -132,7 +144,7 @@ class NYU(CustomDataLoader):
         elif self.split == 'holdout':
             return '00001.h5' in filename or '00201.h5' in filename
         elif self.split == 'val':
-            return filename.endswith('.h5')
+            return filename.endswith('.png')
         else:
             raise RuntimeError("Invalid dataset split: " + self.split + "\nSupported dataset splits are: train, val")
 
@@ -166,6 +178,60 @@ class NYU(CustomDataLoader):
         transform = T.Compose([
             T.Resize(first_resize),
             T.CenterCrop((228, 304)),
+            T.Resize(self.output_size),
+        ])
+        rgb_np = transform(rgb)
+        rgb_np = np.asfarray(rgb_np, dtype='float') / 255
+        depth_np = transform(depth_np)
+
+        return rgb_np, depth_np
+
+
+class UC(CustomDataLoader):
+    def __init__(self, root, split, modality='rgb'):
+        self.split = split
+        super(UC, self).__init__(root, split, modality)
+        self.output_size = (640, 480)
+
+    def isImageFile(self, filename):
+        # IMG_EXTENSIONS = ['.h5']
+        if self.split == 'train':
+            return filename.endswith('.tiff') 
+        elif self.split == 'val':
+            return filename.endswith('tiff')
+        else:
+            raise RuntimeError("Invalid dataset split: " + self.split + "\nSupported dataset splits are: train, val")
+
+    def trainTransform(self, rgb, depth):
+        s = np.random.uniform(1.0, 1.5)  # random scaling
+        depth_np = depth / s
+        angle = np.random.uniform(-5.0, 5.0)  # random rotation degrees
+        do_flip = np.random.uniform(0.0, 1.0) < 0.5  # random horizontal flip
+
+        # perform 1st step of data augmentation
+        first_resize = tuple(map(int, list((250.0 / IMAGE_HEIGHT) * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
+        second_resize = tuple(map(int, list(s * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
+        transform = T.Compose([
+            T.Resize(first_resize),  # this is for computational efficiency, since rotation can be slow
+            T.Rotate(angle),
+            T.Resize(second_resize),
+            T.CenterCrop((228, 304)),
+            T.HorizontalFlip(do_flip),
+            T.Resize(self.output_size),
+        ])
+        rgb_np = transform(rgb)
+        rgb_np = self.color_jitter(rgb_np)  # random color jittering
+        rgb_np = np.asfarray(rgb_np, dtype='float') / 255
+        depth_np = transform(depth_np)
+
+        return rgb_np, depth_np
+
+    def validationTransform(self, rgb, depth):
+        first_resize = tuple(map(int, list((250.0 / IMAGE_HEIGHT) * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
+        depth_np = depth
+        transform = T.Compose([
+            # T.Resize(first_resize),
+            # T.CenterCrop((228, 304)),
             T.Resize(self.output_size),
         ])
         rgb_np = transform(rgb)
