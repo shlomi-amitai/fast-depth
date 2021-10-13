@@ -1,7 +1,7 @@
 import os
 import os.path
 
-import h5py
+# import h5py
 import numpy as np
 import torch
 import torch.utils.data as data
@@ -13,18 +13,23 @@ from pathlib import Path
 IMAGE_HEIGHT, IMAGE_WIDTH = 608, 968  # raw image size
 
 
-def h5Loader(path):
-    h5f = h5py.File(path, "r")
-    rgb = np.array(h5f['rgb'])
-    rgb = np.transpose(rgb, (1, 2, 0))
-    depth = np.array(h5f['depth'])
-    return rgb, depth
+# def h5Loader(path):
+#     h5f = h5py.File(path, "r")
+#     rgb = np.array(h5f['rgb'])
+#     rgb = np.transpose(rgb, (1, 2, 0))
+#     depth = np.array(h5f['depth'])
+#     return rgb, depth
 
 def pilLoader(path):
     if 'val\\rgb' in path: 
         depthPath = path.replace('val\\rgb', 'depth')
-    else:
+    elif 'val/rgb' in path: 
+        depthPath = path.replace('val/rgb', 'depth')
+    elif 'train\\rgb' in path:
         depthPath = path.replace('train\\rgb', 'depth')
+    else:
+        depthPath = path.replace('train/rgb', 'depth')
+
     depthPath = depthPath.replace('.tiff', '_abs_depth.tif')
     rgb = np.array(pil.open(path)).astype(np.float32)
     depth = np.array(pil.open(depthPath)).astype(np.float32)
