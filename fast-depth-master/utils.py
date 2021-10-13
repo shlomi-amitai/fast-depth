@@ -130,6 +130,7 @@ def parse_command():
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='PATH',)
     parser.add_argument('-t', '--train', default='', type=str, )
     parser.add_argument('--gpu', default='0', type=str, metavar='N', help="gpu id")
+    parser.add_argument('--data_path', default='', type=str, metavar='N', help="data path")
 
     # args = parser.parse_args()
     # return args
@@ -154,7 +155,7 @@ def parse_command():
                         help='decoder: ' + ' | '.join(decoder_names) + ' (default: deconv2)')
     # parser.add_argument('-j', '--workers', default=10, type=int, metavar='N',
     #                     help='number of data loading workers (default: 10)')
-    parser.add_argument('--epochs', default=15, type=int, metavar='N',
+    parser.add_argument('--epochs', default=50, type=int, metavar='N',
                         help='number of total epochs to run (default: 15)')
     parser.add_argument('-c', '--criterion', metavar='LOSS', default='l1', choices=loss_names,
                         help='loss function: ' + ' | '.join(loss_names) + ' (default: l1)')

@@ -663,7 +663,10 @@ class MobileNetSkipAdd(nn.Module):
             pretrained_path = os.path.join('mobilnet', 'model_best.pth.tar')
 
             print("Pre Trained Mobile net path : " +pretrained_path )
-            checkpoint = torch.load(pretrained_path)
+            if torch.cuda.is_available():
+                checkpoint = torch.load(pretrained_path)
+            else:
+                checkpoint = torch.load(pretrained_path, map_location='cpu')
             state_dict = checkpoint['state_dict']
 
             from collections import OrderedDict

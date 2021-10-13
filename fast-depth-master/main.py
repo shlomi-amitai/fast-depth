@@ -36,8 +36,9 @@ def create_data_loaders(args):
     # Data loading code
     print("=> creating data loaders ...")
     home_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-    traindir = os.path.join(home_path, 'data', args.data, 'train')
-    valdir = os.path.join(home_path, 'data', args.data, 'val')
+    data_path = args.data_path
+    traindir = os.path.join(data_path, args.data, 'train')
+    valdir = os.path.join(data_path, args.data, 'val')
     train_loader = None
 
     max_depth = args.max_depth if args.max_depth >= 0.0 else np.inf
@@ -76,8 +77,8 @@ def main():
 
         # Data loading code
         print("=> creating data loaders...")
-        home_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-        valdir = os.path.join(home_path, 'data', args.data, 'val')
+        data_path = args.data_path
+        valdir = os.path.join(data_path, args.data, 'val')
 
         if args.data == 'nyudepthv2':
             val_dataset = NYU(valdir, split='val', modality=args.modality)
@@ -115,13 +116,16 @@ def main():
         optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
         # model = torch.nn.DataParallel(model).cuda() # for multi-gpu training
-        model = model.cuda()
+        if int(args.gpu)>-1:
+            model = model.cuda()
 
         # define loss function (criterion) and optimizer
     if args.criterion == 'l2':
-        criterion = criteria.MaskedMSELoss().cuda()
+        criterion = criteria.MaskedMSELoss()
     elif args.criterion == 'l1':
-        criterion = criteria.MaskedL1Loss().cuda()
+        criterion = criteria.MaskedL1Loss()
+    if int(args.gpu)>-1:
+        criterion = criterion.cuda()
 
         # create results folder, if not already exists
     output_directory = get_output_directory(args)
@@ -177,7 +181,8 @@ def validate(val_loader, model, epoch, write_to_file=True):
     f = open(eval_file, "w+")
     f.write("Max_Error,Depth,RMSE,GPU_TIME,Number_Of_Frame\r\n")
     for i, (input, target) in enumerate(val_loader):
-        input, target = input.cuda(), target.cuda()
+        if int(args.gpu)>-1:
+            input, target = input.cuda(), target.cuda()
         # torch.cuda.synchronize()
         data_time = time.time() - end
 
@@ -260,9 +265,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()  # switch to train mode
     end = time.time()
     for i, (input, target) in enumerate(train_loader):
-
-        input, target = input.cuda(), target.cuda()
-        torch.cuda.synchronize()
+        if int(args.gpu)>-1:
+            input, target = input.cuda(), target.cuda()
+            torch.cuda.synchronize()
         data_time = time.time() - end
 
         # compute pred
@@ -272,7 +277,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
         optimizer.zero_grad()
         loss.backward()  # compute gradient and do SGD step
         optimizer.step()
-        torch.cuda.synchronize()
+        if int(args.gpu)>-1:
+            torch.cuda.synchronize()
         gpu_time = time.time() - end
 
         # measure accuracy and record loss
