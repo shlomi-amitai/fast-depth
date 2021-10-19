@@ -217,10 +217,10 @@ class UC(CustomDataLoader):
         first_resize = tuple(map(int, list((250.0 / IMAGE_HEIGHT) * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
         second_resize = tuple(map(int, list(s * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
         transform = T.Compose([
-            T.Resize(first_resize),  # this is for computational efficiency, since rotation can be slow
-            T.Rotate(angle),
-            T.Resize(second_resize),
-            T.CenterCrop((228, 304)),
+            # T.Resize(first_resize),  # this is for computational efficiency, since rotation can be slow
+            # T.Rotate(angle),
+            # T.Resize(second_resize),
+            # T.CenterCrop((228, 304)),
             T.HorizontalFlip(do_flip),
             T.Resize(self.output_size),
         ])

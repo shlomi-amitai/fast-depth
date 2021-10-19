@@ -27,7 +27,9 @@ fieldnames = ['rmse', 'mae', 'delta1', 'absrel',
 best_fieldnames = ['best_epoch'] + fieldnames
 best_result = Result()
 best_result.set_to_worst()
+corr_loss = criteria.CorrelationLoss()
 
+# NOTE:: python reference functions https://github.com/wangyanckxx/Single-Underwater-Image-Enhancement-and-Color-Restoration
 
 ##################################################################
 
@@ -193,7 +195,10 @@ def validate(val_loader, model, epoch, write_to_file=True):
         # torch.cuda.synchronize()
         gpu_time = time.time() - end
 
+        valid_mask = (target>1e-3).detach()
+
         abs_err = (target.data - pred.data).abs().cpu()
+        abs_err[valid_mask==0]=0
         max_err_ind = np.unravel_index(np.argmax(abs_err, axis=None), abs_err.shape)
 
         max_err_depth = target.data[max_err_ind]
@@ -212,11 +217,12 @@ def validate(val_loader, model, epoch, write_to_file=True):
 
         if args.modality == 'rgb':
             rgb = input
-
+        diffIm = (target - pred).abs()
+        diffIm[valid_mask==0]=0
         if i == 0:
-            img_merge = merge_into_row_with_gt(rgb, target, pred, (target - pred).abs())
+            img_merge = merge_into_row_with_gt(rgb, target, pred, diffIm)
         elif (i < 8 * skip) and (i % skip == 0):
-            row = merge_into_row_with_gt(rgb, target, pred, (target - pred).abs())
+            row = merge_into_row_with_gt(rgb, target, pred, diffIm)
             img_merge = add_row(img_merge, row)
         if 1:
             filename = 'results/comparison_' + str(epoch) + '.png'
@@ -274,7 +280,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
         end = time.time()
         pred = model(input)
         loss = criterion(pred, target)
+        # TODO: continue here
+        corrLoss = corr_loss(input, target, pred)
         optimizer.zero_grad()
+        loss+=corrLoss
         loss.backward()  # compute gradient and do SGD step
         optimizer.step()
         if int(args.gpu)>-1:
