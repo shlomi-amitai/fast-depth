@@ -131,6 +131,7 @@ def parse_command():
     parser.add_argument('-t', '--train', default='', type=str, )
     parser.add_argument('--gpu', default='0', type=str, metavar='N', help="gpu id")
     parser.add_argument('--data_path', default='', type=str, metavar='N', help="data path")
+    parser.add_argument('--run_name', default='testRun', type=str, metavar='N', help="unique run name")
 
     # args = parser.parse_args()
     # return args
@@ -209,7 +210,7 @@ def adjust_learning_rate(optimizer, epoch, lr_init):
         param_group['lr'] = lr
 
 def get_output_directory(args):
-    output_directory = os.path.join('results',
+    output_directory = os.path.join('results', args.run_name, 
         '{}.sparsifier={}.samples={}.modality={}.arch={}.decoder={}.criterion={}.lr={}.bs={}.pretrained={}'.
         format(args.data, args.sparsifier, args.num_samples, args.modality, \
             args.arch, args.decoder, args.criterion, args.lr, args.batch_size, \
