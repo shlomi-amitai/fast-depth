@@ -282,7 +282,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         loss = criterion(pred, target)
         # TODO: continue here
         corrLoss = corr_loss(input, target, pred)
-        loss+=corrLoss
+        loss+=(0.1*corrLoss)
         optimizer.zero_grad()
         
         loss.backward()  # compute gradient and do SGD step
