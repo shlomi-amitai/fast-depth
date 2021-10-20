@@ -113,7 +113,7 @@ def parse_command():
 
 
     ################
-    data_names = ['nyudepthv2', 'uc']
+    data_names = ['nyudepthv2', 'uc', 'Flatiron']
     modality_names = CustomDataLoader.modality_names
 
     import argparse
