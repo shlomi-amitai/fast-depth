@@ -225,12 +225,12 @@ def validate(val_loader, model, epoch, write_to_file=True):
             row = merge_into_row_with_gt(rgb, target, pred, diffIm)
             img_merge = add_row(img_merge, row)
         if 1:
-            filename = 'results/comparison_' + str(epoch) + '.png'
+            filename = os.path.join('results', args.run_name, 'comparison_' + str(epoch) + '.png')
             save_image(img_merge, filename)
 
         inputIm = toNumpy(rgb*255).astype(np.uint8)
         outPred = toNumpy(normalize_image(pred)*255).astype(np.uint8)
-        outDir = 'results'
+        outDir = os.path.join('results', args.run_name)
         if not os.path.exists(outDir):
             os.makedirs(outDir)
         plt.imsave(outDir + "/frame_{:06d}_color.bmp".format(i), inputIm)

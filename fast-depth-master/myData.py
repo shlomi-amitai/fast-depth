@@ -229,9 +229,9 @@ class UC(CustomDataLoader):
         rgb_np = np.asfarray(rgb_np, dtype='float') / 255
         depth_np = transform(depth_np)
 
-        BG_R = np.max(rgb_np[:, :, 1:], axis=2) - rgb_np[:,:,0]
-        rgb_fixed = np.stack((BG_R, rgb_np[:,:,1], rgb_np[:,:,2]), axis=2)
-        return rgb_fixed, depth_np
+        # BG_R = np.max(rgb_np[:, :, 1:], axis=2) - rgb_np[:,:,0]
+        # rgb_fixed = np.stack((BG_R, rgb_np[:,:,1], rgb_np[:,:,2]), axis=2)
+        return rgb_np, depth_np
 
     def validationTransform(self, rgb, depth):
         first_resize = tuple(map(int, list((250.0 / IMAGE_HEIGHT) * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
