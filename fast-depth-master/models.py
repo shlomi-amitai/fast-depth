@@ -6,6 +6,19 @@ import collections
 import math
 import torch.nn.functional as F
 import imagenet.mobilenet
+from torch.autograd import Variable
+import numpy as np
+
+class depthRegression(nn.Module):
+    def __init__(self, maxdisp):
+        super(depthRegression, self).__init__()
+        self.depths = torch.Tensor(np.reshape(np.array(range(16)),[1, 16,1,1]))
+        if torch.cuda.is_available():
+            self.depths = self.depths.cuda()
+
+    def forward(self, x):
+        out = torch.sum(x*self.depths.data,1, keepdim=True)
+        return out
 
 class Identity(nn.Module):
     # a dummy identity module
@@ -48,6 +61,13 @@ def weights_init(m):
     elif isinstance(m, nn.BatchNorm2d):
         m.weight.data.fill_(1)
         m.bias.data.zero_()
+
+
+def convbn_3d(in_planes, out_planes, kernel_size, stride):
+    pad = (kernel_size-1) // 2
+    return nn.Sequential(
+            nn.Conv3d(in_planes, out_planes, kernel_size=kernel_size, padding=pad, stride=1,bias=False),
+                         nn.BatchNorm3d(out_planes))
 
 def conv(in_channels, out_channels, kernel_size):
     padding = (kernel_size-1) // 2
@@ -738,15 +758,18 @@ class MobileNetSkipAdd(nn.Module):
         x = self.decode_conv6(x)
         return x
 
-class MobileNetSkipConcat(nn.Module):
+class MobileNetSkipConcatBlurCost(nn.Module):
     def __init__(self, output_size, pretrained=True):
 
-        super(MobileNetSkipConcat, self).__init__()
+        super(MobileNetSkipConcatBlurCost, self).__init__()
         self.output_size = output_size
         mobilenet = imagenet.mobilenet.MobileNet()
         if pretrained:
-            pretrained_path = os.path.join('imagenet', 'results', 'imagenet.arch=mobilenet.lr=0.1.bs=256', 'model_best.pth.tar')
-            checkpoint = torch.load(pretrained_path)
+            pretrained_path = os.path.join('mobilnet', 'model_best.pth.tar')
+            if torch.cuda.is_available():
+                checkpoint = torch.load(pretrained_path)
+            else:
+                checkpoint = torch.load(pretrained_path, map_location='cpu')
             state_dict = checkpoint['state_dict']
 
             from collections import OrderedDict
@@ -769,19 +792,19 @@ class MobileNetSkipConcat(nn.Module):
         # self.decode_conv5 = conv(64, 32, kernel_size)
         self.decode_conv1 = nn.Sequential(
             depthwise(1024, kernel_size),
-            pointwise(1024, 512))
+            pointwise(1024, 128))
         self.decode_conv2 = nn.Sequential(
-            depthwise(512, kernel_size),
-            pointwise(512, 256))
+            depthwise(384, kernel_size),
+            pointwise(384, 128))
         self.decode_conv3 = nn.Sequential(
-            depthwise(512, kernel_size),
-            pointwise(512, 128))
-        self.decode_conv4 = nn.Sequential(
             depthwise(256, kernel_size),
-            pointwise(256, 64))
+            pointwise(256, 128))
+        self.decode_conv4 = nn.Sequential(
+            depthwise(192, kernel_size),
+            pointwise(192, 128))
         self.decode_conv5 = nn.Sequential(
             depthwise(128, kernel_size),
-            pointwise(128, 32))
+            pointwise(128, 128))
         self.decode_conv6 = pointwise(32, 1)
         weights_init(self.decode_conv1)
         weights_init(self.decode_conv2)
@@ -790,10 +813,26 @@ class MobileNetSkipConcat(nn.Module):
         weights_init(self.decode_conv5)
         weights_init(self.decode_conv6)
 
+        self.conv3d_1 = nn.Sequential(convbn_3d(128, 64, 3, 1),
+                                     nn.ReLU(inplace=True),
+                                     convbn_3d(64, 64, 3, 1),
+                                     nn.ReLU(inplace=True))
+
+        self.conv3d_2 = nn.Sequential(convbn_3d(64, 32, 3, 1),
+                                     nn.ReLU(inplace=True),
+                                     convbn_3d(32, 32, 3, 1),
+                                     nn.ReLU(inplace=True))
+
+        self.classify = nn.Sequential(convbn_3d(32, 32, 3, 1),
+                                     nn.ReLU(inplace=True),
+                                     convbn_3d(32, 1, 3, 1))
+
+
     def forward(self, x):
         # skip connections: dec4: enc1
         # dec 3: enc2 or enc3
         # dec 2: enc4 or enc5
+        im_size = [480//2, 640//2]
         for i in range(14):
             layer = getattr(self, 'conv{}'.format(i))
             x = layer(x)
@@ -804,18 +843,44 @@ class MobileNetSkipConcat(nn.Module):
                 x2 = x
             elif i==5:
                 x3 = x
-        for i in range(1,6):
-            layer = getattr(self, 'decode_conv{}'.format(i))
-            # print("{}a: {}".format(i, x.size()))
-            x = layer(x)
-            # print("{}b: {}".format(i, x.size()))
+        
+        cost = Variable(torch.FloatTensor(x.size()[0], 128, 4,  im_size[0],  im_size[1]).zero_(), volatile= not self.training)
+        if torch.cuda.is_available():
+            cost = cost.cuda()
+
+        for i in range(1,5):
+            
+            # x = F.interpolate(x, size=im_size, mode='bilinear')
             x = F.interpolate(x, scale_factor=2, mode='nearest')
+            # print("{}a: {}".format(i, x.size()))
+            
+            
             if i==4:
+                # x1 = F.interpolate(x1, size=im_size, mode='bilinear')
                 x = torch.cat((x, x1), 1)
             elif i==3:
+                # x2 = F.interpolate(x2, size=im_size, mode='bilinear')
                 x = torch.cat((x, x2), 1)
             elif i==2:
+                # x3 = F.interpolate(x3, size=im_size, mode='bilinear')
                 x = torch.cat((x, x3), 1)
+            # print("{}b: {}".format(i, x.size()))
+
+
+            layer = getattr(self, 'decode_conv{}'.format(i))
+            x = layer(x)
+            x2cost = F.interpolate(x, size=im_size, mode='bilinear')
+            
+            cost[:,:,i-1,:,:] = x2cost
             # print("{}c: {}".format(i, x.size()))
-        x = self.decode_conv6(x)
-        return x
+
+        cost = cost.contiguous()
+
+        cost0 = self.conv3d_1(cost)
+        cost0 = self.conv3d_2(cost0)
+        cost = self.classify(cost0)
+        cost = F.upsample(cost, [16,2*im_size[0],  2*im_size[1]], mode='trilinear')
+        cost = torch.squeeze(cost,1)
+        pred = F.softmax(cost)
+        pred = depthRegression(16)(pred)
+        return pred

@@ -113,7 +113,7 @@ def main():
         train_loader, val_loader = create_data_loaders(args)
         print("=> creating Model ({}-{}) ...".format(args.arch, args.decoder))
 
-        model = models.MobileNetSkipAdd(output_size=train_loader.dataset.output_size)
+        model = models.MobileNetSkipConcatBlurCost(output_size=train_loader.dataset.output_size)
         print("=> model created.")
         optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
