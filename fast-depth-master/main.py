@@ -39,9 +39,13 @@ def create_data_loaders(args):
     print("=> creating data loaders ...")
     home_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
     data_path = args.data_path
-    traindir = os.path.join(data_path, args.data, 'train')
-    valdir = os.path.join(data_path, args.data, 'val')
+    traindir = os.path.join(data_path, args.data, 'rgb')
+    valdir = os.path.join(data_path, args.data, 'rgb')
     train_loader = None
+
+    fpath = os.path.join(os.path.dirname(__file__), "splits", args.data, "{}_files.txt")
+    train_filenames = readlines(fpath.format("train"))
+    val_filenames = readlines(fpath.format("val"))
 
     max_depth = args.max_depth if args.max_depth >= 0.0 else np.inf
 
@@ -51,8 +55,8 @@ def create_data_loaders(args):
         val_dataset = NYU(valdir, split='val', modality=args.modality)
     else:
         if not args.evaluate:
-            train_dataset = UC(traindir, split='train', modality=args.modality)  
-        val_dataset = UC(valdir, split='val', modality=args.modality)
+            train_dataset = UC(traindir, split='train', filenames = train_filenames, modality=args.modality)  
+        val_dataset = UC(valdir, split='val', filenames = val_filenames, modality=args.modality)
 
     # set batch size to be 1 for validation
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=args.workers,

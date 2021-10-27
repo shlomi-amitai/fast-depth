@@ -20,15 +20,11 @@ IMAGE_HEIGHT, IMAGE_WIDTH = 608, 968  # raw image size
 #     depth = np.array(h5f['depth'])
 #     return rgb, depth
 
+
+
 def pilLoader(path):
-    if 'val\\rgb' in path: 
-        depthPath = path.replace('val\\rgb', 'depth')
-    elif 'val/rgb' in path: 
-        depthPath = path.replace('val/rgb', 'depth')
-    elif 'train\\rgb' in path:
-        depthPath = path.replace('train\\rgb', 'depth')
-    else:
-        depthPath = path.replace('train/rgb', 'depth')
+    if 'rgb' in path: 
+        depthPath = path.replace('rgb', 'depth')
 
     depthPath = depthPath.replace('.tiff', '_abs_depth.tif')
     rgb = np.array(pil.open(path)).astype(np.float32)
@@ -69,11 +65,11 @@ class CustomDataLoader(data.Dataset):
 
     def __init__(self, root, split, modality='rgb', loader=pilLoader):
         classes, class_to_idx = self.findClasses(root)
-        imgs = self.makeDataset(root, class_to_idx)
-        assert len(imgs) > 0, "Found 0 images in subfolders of: " + root + "\n"
+        # imgs = self.makeDataset(root, class_to_idx)
+        assert len(self.fileNames) > 0, "Found 0 images in subfolders of: " + root + "\n"
         # print("Found {} images in {} folder.".format(len(imgs), split))
         self.root = root
-        self.imgs = imgs
+        # self.imgs = imgs
         self.classes = classes
         self.class_to_idx = class_to_idx
         if split == 'train':
@@ -91,6 +87,13 @@ class CustomDataLoader(data.Dataset):
                                                   "Supported dataset splits are: " + ''.join(self.modality_names)
         self.modality = modality
 
+    def get_image_path(self, frame_index):
+        f_str = self.fileNames[frame_index].split(',')[-1]
+        image_path = os.path.join(
+            self.root,
+            f_str)
+        return image_path
+
     # def trainTransform(self, rgb, depth):
     #     raise (RuntimeError("train_transform() is not implemented. "))
     #
@@ -105,8 +108,9 @@ class CustomDataLoader(data.Dataset):
         Returns:
             tuple: (rgb, depth) the raw data.
         """
-        path, target = self.imgs[index]
-        rgb, depth = self.loader(path)
+        impath = self.get_image_path(index)
+        # path, target = self.imgs[index]
+        rgb, depth = self.loader(impath)
         return rgb, depth
 
     def __getitem__(self, index):
@@ -133,7 +137,7 @@ class CustomDataLoader(data.Dataset):
         return input_tensor, depth_tensor
 
     def __len__(self):
-        return len(self.imgs)
+        return len(self.fileNames)
 
 
 class NYU(CustomDataLoader):
@@ -193,10 +197,11 @@ class NYU(CustomDataLoader):
 
 
 class UC(CustomDataLoader):
-    def __init__(self, root, split, modality='rgb'):
+    def __init__(self, root, split, filenames, modality='rgb'):
         self.split = split
         super(UC, self).__init__(root, split, modality)
         self.output_size = (640, 480)
+        self.fileNames = filenames
 
     def isImageFile(self, filename):
         # IMG_EXTENSIONS = ['.h5']
