@@ -881,6 +881,6 @@ class MobileNetSkipConcatBlurCost(nn.Module):
         cost = self.classify(cost0)
         cost = F.upsample(cost, [16,2*im_size[0],  2*im_size[1]], mode='trilinear')
         cost = torch.squeeze(cost,1)
-        pred = F.softmax(cost)
+        pred = F.softmax(cost, dim=1)
         pred = depthRegression(16)(pred)
         return pred
