@@ -219,13 +219,13 @@ class UC(CustomDataLoader):
         do_flip = np.random.uniform(0.0, 1.0) < 0.5  # random horizontal flip
 
         # perform 1st step of data augmentation
-        first_resize = tuple(map(int, list((250.0 / IMAGE_HEIGHT) * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
+        first_resize = tuple(map(int, list((500.0 / IMAGE_HEIGHT) * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
         second_resize = tuple(map(int, list(s * np.array([IMAGE_HEIGHT, IMAGE_WIDTH]))))
         transform = T.Compose([
-            # T.Resize(first_resize),  # this is for computational efficiency, since rotation can be slow
-            # T.Rotate(angle),
-            # T.Resize(second_resize),
-            # T.CenterCrop((228, 304)),
+            T.Resize(first_resize),  # this is for computational efficiency, since rotation can be slow
+            T.Rotate(angle),
+            T.Resize(second_resize),
+            T.CenterCrop((int(IMAGE_HEIGHT*3/4), int(IMAGE_WIDTH*3/4))),
             T.HorizontalFlip(do_flip),
             T.Resize(self.output_size),
         ])
