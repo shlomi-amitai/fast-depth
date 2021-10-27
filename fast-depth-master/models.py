@@ -871,7 +871,7 @@ class MobileNetSkipConcatBlurCost(nn.Module):
             x = layer(x)
             x2cost = F.interpolate(x, size=im_size, mode='bilinear')
             
-            cost[:,:,i-1,:,:] = x2cost
+            cost[:,:,4-i,:,:] = x2cost
             # print("{}c: {}".format(i, x.size()))
 
         cost = cost.contiguous()
