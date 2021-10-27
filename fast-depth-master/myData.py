@@ -66,7 +66,7 @@ class CustomDataLoader(data.Dataset):
     def __init__(self, root, split, modality='rgb', loader=pilLoader):
         classes, class_to_idx = self.findClasses(root)
         # imgs = self.makeDataset(root, class_to_idx)
-        assert len(self.fileNames) > 0, "Found 0 images in subfolders of: " + root + "\n"
+        # assert len(self.fileNames) > 0, "Found 0 images in subfolders of: " + root + "\n"
         # print("Found {} images in {} folder.".format(len(imgs), split))
         self.root = root
         # self.imgs = imgs
